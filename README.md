@@ -15,7 +15,7 @@ cp .env.example .env   # optional, for your own shell; never commit it
 | Env var | Meaning |
 |---|---|
 | `CODECKS_TOKEN` | API token. Organization (`cdxat_…`) or personal (`cdxut_…`), created in Codecks organization settings. Needs read plus `card:write` / `resolvable:write` for the write tools. A legacy browser `at` token also works until 2026-12-31 (sent as `X-Auth-Token`). |
-| `CODECKS_ACCOUNT` | Account subdomain (`acme` for `acme.codecks.io`). |
+| `CODECKS_ACCOUNT` | Account subdomain (`acme`). A full URL like `https://acme.codecks.io` is also accepted. |
 
 The token is only read from env and is never logged.
 
@@ -69,7 +69,7 @@ npm run build
 
 ## Status / caveats
 
-Not yet tested against a live account. Response parsing follows the documented flattened format; filters (`masterTags` with `has`, `content` with `contains`) follow the documented operators. Verify with a real token before relying on it.
+Verified live (2026-10-05) for all 10 tools, including tag and text filters and tags by name. HTTP proxy env vars (`HTTPS_PROXY`) are honoured. `list_users` is derived from cards. Tags must already exist in the project.
 
 ## Prior art
 

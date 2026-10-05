@@ -1,3 +1,5 @@
+import { EnvHttpProxyAgent } from "undici";
+
 // Codecks HTTP client. Source of truth: https://manual.codecks.io/api/ (auth, query, dispatch,
 // rate limits) and https://manual.codecks.io/api-reference (models, actions, enums).
 
@@ -13,6 +15,25 @@ export class CodecksError extends Error {
     this.name = "CodecksError";
   }
 }
+
+/** Accept "acme", "acme.codecks.io" or "https://acme.codecks.io/" and return "acme". */
+export function normalizeAccount(input: string): string {
+  return input
+    .trim()
+    .replace(/^[a-z]+:\/\//i, "")
+    .replace(/[/?#].*$/, "")
+    .replace(/\.codecks\.io$/i, "");
+}
+
+const proxied = Boolean(
+  process.env.HTTPS_PROXY || process.env.https_proxy || process.env.HTTP_PROXY || process.env.http_proxy,
+);
+
+/** Node's built-in fetch ignores proxy env vars; honour them when set. */
+const defaultFetch: FetchLike = (url, init) =>
+  proxied
+    ? fetch(url, { ...init, dispatcher: new EnvHttpProxyAgent() } as RequestInit)
+    : fetch(url, init);
 
 export type FetchLike = (url: string, init: RequestInit) => Promise<Response>;
 
@@ -38,14 +59,14 @@ export class CodecksClient {
   private readonly headers: Record<string, string>;
 
   constructor(opts: ClientOptions) {
-    this.fetchImpl = opts.fetchImpl ?? ((u, i) => fetch(u, i));
+    this.fetchImpl = opts.fetchImpl ?? defaultFetch;
     this.baseUrl = opts.baseUrl ?? API_URL;
     // Documented: `Authorization: Bearer cdxat_...|cdxut_...`. The legacy `X-Auth-Token`
     // (browser session token) works until 2026-12-31, so keep it for non-prefixed tokens.
     const bearer = /^cdx[a-z]t_/.test(opts.token);
     this.headers = {
       "Content-Type": "application/json",
-      "X-Account": opts.account,
+      "X-Account": normalizeAccount(opts.account),
       ...(bearer ? { Authorization: `Bearer ${opts.token}` } : { "X-Auth-Token": opts.token }),
     };
   }
@@ -57,7 +78,9 @@ export class CodecksClient {
 
   /** Write: POST /dispatch/<namespace>/<action>. */
   async dispatch(path: string, body: Record<string, unknown>): Promise<any> {
-    return this.post(`/dispatch/${path}`, body);
+    const res = await this.post(`/dispatch/${path}`, body);
+    // Live responses wrap results as {payload, actionId}.
+    return res && typeof res === "object" && "payload" in res ? res.payload : res;
   }
 
   private async post(path: string, body: unknown): Promise<any> {

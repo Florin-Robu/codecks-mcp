@@ -133,3 +133,11 @@ describe("writes", () => {
     expect(t.calls[1].body).toEqual({ id: "c1", visibility: "archived" });
   });
 });
+
+describe("account normalisation", () => {
+  it("accepts url or subdomain", async () => {
+    const { normalizeAccount } = await import("../src/client.js");
+    for (const v of ["acme", "acme.codecks.io", "https://acme.codecks.io", "https://acme.codecks.io/", " HTTPS://acme.codecks.io/x?y "])
+      expect(normalizeAccount(v).toLowerCase()).toBe("acme");
+  });
+});
